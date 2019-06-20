@@ -5,8 +5,8 @@ LCLU (Sentinel 1, 2 and Landsat 8) either to explore cloudless mosaic and even a
 All This was developped with GEE Javasript Code Editor ( https://code.earthengine.google.com/ ). Once you have an Google account, you only 
 have to subscrive to the service. Then copy/paste the code in the Code Editor and run it
 
-This work takes place in the context of an internship of three months (fourth year of geography) in the french agriculture ministry that 
-aimed at automaticaly and yearly spoting LCLU in the french region of Guiana (South America).
+This work takes place in the context of an internship of three months (fourth year of geography study) in the french agriculture ministry 
+that aimed at automaticaly and yearly spot the LCLU in the french region of Guiana (South America).
 
 //FEEL FREE//:
 Those programms are licensed under an MIT style license with the 
