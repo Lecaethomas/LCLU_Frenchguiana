@@ -1,5 +1,5 @@
 # OCS_Guyane
-In order to map Land Cover/Land Use in french-Guyana, few scripts were developped or adapted to enable either semi-automaticaly mapping of 
+In order to map Land Cover/Land Use in french-Guyana (South-america), few scripts were developped or adapted to enable either semi-automaticaly mapping of 
 LCLU (Sentinel 1, 2 and Landsat 8) either to explore cloudless mosaic and even automaticaly detect floodings with Sentinel 1 SAR data.
 
 This work takes place in the context of an internship of three months (fourth year of geography) in the french agriculture ministry that 
@@ -15,3 +15,5 @@ and/or sell copies of the program
 
 Don't be surprised that the scripts are loaded with French and English comments, it aims at allowing agents to get the best of it but also 
 to keep it usefull for each and everyone interrested in working in such contexts.
+
+By the way, i'd like to underline the Google Earth Engine developpers group for their conscious or even unconscious "commons" spirit.
