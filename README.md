@@ -1,4 +1,4 @@
-# OCS_Guyane
+# LCLU
 In order to map Land Cover/Land Use in french-Guiana (South-america), few scripts were developped or adapted to enable either semi-automaticaly mapping of 
 LCLU (Sentinel 1, 2 and Landsat 8) either to explore cloudless mosaic and even automaticaly detect floodings with Sentinel 1 SAR data.
 
