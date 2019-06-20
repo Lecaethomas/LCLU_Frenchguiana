@@ -1,3 +1,8 @@
+ //This Script computes differents cloudless per-pixel mosaics of Sentinel 2 level 1-C images over french-Guiana.
+//This can be adapted to any locations by moving the import "geometry", 
+//and by the way you also can change the date. (double ctrl+F search&replace) 
+//(of course, computing such things during the rainy season can be pretty tough)
+
 var guyane = /* color: #d63000 */ee.Geometry.Polygon(
         [[[-54.12771125573204, 5.568721471656913],
           [-54.33645149010704, 5.366399220638088],
@@ -37,10 +42,7 @@ var guyane = /* color: #d63000 */ee.Geometry.Polygon(
           [-53.51247688073204, 5.661657147797225],
           [-53.75966926354454, 5.770974089194693],
           [-53.98488899010704, 5.858412487227604]]]);
- //This Script computes differents cloudless per-pixel mosaics of Sentinel 2 level 1-C images over french-Guiana.
-//This can be adapted to any locations by moving the import "geometry", 
-//and by the way you also can change the date. (double ctrl+F search&replace) 
-//(of course, computing such things during the rainy season can be pretty tough)
+
 
 function maskS2clouds(image) {
   var qa = image.select('QA60');
