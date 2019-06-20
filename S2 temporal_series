@@ -1,0 +1,59 @@
+//This program allows to explore an image collection of Sentinel 2 (with less than 20% cloudy pixels) detected during a period 
+var guyane = 
+    /* color: #d63000 */
+    /* displayProperties: [
+      {
+        "type": "rectangle"
+      }
+    ] */
+    ee.Geometry.Polygon(
+        [[[-53.40798208838487, 4.083804956679912],
+          [-53.40798208838487, 3.109329933329487],
+          [-52.67189810400987, 3.109329933329487],
+          [-52.67189810400987, 4.083804956679912]]], null, false);
+
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask);
+}
+var rgbVis = {
+  min: 0.0,
+  max: 0.3,
+  bands: ['B8', 'B4', 'B2'],
+};
+var s2 = ee.ImageCollection('COPERNICUS/S2')
+                  .filterDate('2018-08-01', '2018-10-31')
+                  .filterBounds(guyane)
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+                  // Pre-filter to get less cloudy granules.
+                  .map(maskS2clouds)
+                  .limit(15)
+
+
+function addImage(image) { // display each image in collection
+  var id = image.id
+  var image = ee.Image(image.id)
+  Map.addLayer(image.divide(10000),rgbVis)
+}
+
+s2.evaluate(function(s2) {  // use map on client-side
+  s2.features.map(addImage)
+})
+var slider = ui.Slider();
+slider.onSlide(function(value) {
+  var int_value = value * (Map.layers().length() - 1) >> 0;
+  Map.layers().get(int_value).setOpacity(1);
+  for (var i = int_value + 1; i < Map.layers().length(); i++) {
+    Map.layers().get(i).setOpacity(0);
+}
+});
+print("balayez pour explorer la série d'images (après chargement)",slider);
