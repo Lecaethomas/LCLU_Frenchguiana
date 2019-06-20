@@ -1,0 +1,180 @@
+var guyane = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-54.09114313371441, 5.703877200721003],
+          [-54.19002008683941, 5.468793140531907],
+          [-54.60200739152691, 5.025712604514844],
+          [-54.47566461808941, 4.21537332871762],
+          [-54.14058161027691, 3.4754709436377773],
+          [-54.32734918840191, 3.217732732333687],
+          [-54.25044489152691, 2.9105557097680443],
+          [-54.71187067277691, 2.235581660776744],
+          [-54.20100641496441, 2.0105166764958455],
+          [-53.81648493058941, 2.235581660776744],
+          [-52.95955133683941, 2.0873717988246496],
+          [-52.55305719621441, 2.361822741056553],
+          [-52.38276911027691, 2.7569352404710643],
+          [-51.89387750871441, 3.349352206963963],
+          [-51.34456110246441, 4.461857158393498],
+          [-51.49836969621441, 4.653509850576792],
+          [-51.93232965715191, 4.888897233670814],
+          [-52.15754938371441, 5.025712604514844],
+          [-52.31685114152691, 5.184382397438939],
+          [-52.38276911027691, 5.282847125580933],
+          [-52.78926325090191, 5.528939873153798],
+          [-53.94832086808941, 5.906081897164606]]]);
+          
+//This script computes an cloudless mosaic and display it differents ways across a "kind of" GUI 
+
+/**
+ * Function to mask clouds using the Sentinel-2 QA band
+ * @param {ee.Image} image Sentinel-2 image
+ * @return {ee.Image} cloud masked Sentinel-2 image
+ */
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000);
+}
+// Sentinel 2 cloud function (B4)
+var cloudfunction_ST2 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b4 = image.select("B4");
+  // Get pixels above the threshold.
+  var cloud = b4.gt(2800);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};   
+// Sentinel 2 cloud function (B2)
+var cloudfunction_ST21 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b2 = image.select("B2");
+  // Get pixels above the threshold.
+  var cloud = b2.gt(0.5);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};  
+// Sentinel 2 cloud function (B3)
+var cloudfunction_ST22 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b3 = image.select("B3");
+  // Get pixels above the threshold.
+  var cloud = b3.gt(0.25);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};  
+// Sentinel 2 cloud function (B9)
+var cloudfunction_ST23 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b9 = image.select("B9");
+  // Get pixels above the threshold.
+  var cloud = b9.gt(1.6);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};  
+
+// Function to mask further cloud using B1 (cirrus cloud) threshold
+var maskcloud2 = function(image) {
+ var B11 = image.select(['B11']);
+ var bin = B11.gt(0.8);
+ return image.updateMask(bin.lt(0.8));
+};
+
+var addNDVI = function(image) {
+return image.addBands(image.normalizedDifference(['B8', 'B4']));
+};
+
+
+// Map the function over one year of data and take the median.
+// Load Sentinel-2 TOA reflectance data.
+var image = ee.ImageCollection('COPERNICUS/S2')
+                  .filterDate('2018-08-01', '2018-10-30')
+                  .filterBounds(guyane)
+                  // Pre-filter to get less cloudy granules.
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+                  .map(cloudfunction_ST2) 
+                  .map(maskS2clouds)
+                  .map(maskcloud2)
+                  .map(cloudfunction_ST21)
+                  .map(cloudfunction_ST22)
+                  .map(cloudfunction_ST23)
+                  .reduce(ee.Reducer.percentile([45]))
+
+// Each map has a name and some visualization parameters. Those have to be adapted if you change the parameters of the reducer (percentile)
+var MAP_PARAMS = {
+  'Couleurs naturelles (10m/Pix) (B4/B3/B2)': ['B4_p45', 'B3_p45', 'B2_p45'],
+  'Terre/Eau (20m/Pix) (B8/B11/B4)': ['B8_p45', 'B11_p45', 'B4_p45'],
+  'Couleurs/infrarouge (10m/Pix) (B8/B4/B3)': ['B8_p45', 'B4_p45', 'B3_p45'],
+  'Vegetation (20m/Pix) (B12/B11/B4)': ['B12_p45', 'B12_p45', 'B4_p45']
+};
+
+// Shared visualization parameters for the images.
+function getVisualization(bands) {
+  return {gamma: 1.3, min: 0, max: 0.3, bands: bands};
+}
+
+
+/*
+ * Configure maps, link them in a grid
+ */
+
+// Create a map for each visualization option.
+var maps = [];
+Object.keys(MAP_PARAMS).forEach(function(name) {
+  var map = ui.Map();
+  map.add(ui.Label(name));
+  map.addLayer(image, getVisualization(MAP_PARAMS[name]), name);
+  map.setControlVisibility(false);
+  maps.push(map);
+});
+
+var linker = ui.Map.Linker(maps);
+
+// Enable zooming on the top-left map.
+maps[0].setControlVisibility({zoomControl: true});
+
+// Show the scale (e.g. '500m') on the bottom-right map.
+maps[3].setControlVisibility({scaleControl: true});
+
+// Create a grid of maps.
+var mapGrid = ui.Panel(
+    [
+      ui.Panel([maps[0], maps[1]], null, {stretch: 'both'}),
+      ui.Panel([maps[2], maps[3]], null, {stretch: 'both'})
+    ],
+    ui.Panel.Layout.Flow('horizontal'), {stretch: 'both'});
+
+// Center the map at an interesting spot in French Guyana. All
+// other maps will align themselves to this parent map.
+maps[0].setCenter(-53.793867272, 5.593665527572,12);
+
+
+/*
+ * Add a title and initialize
+ */
+
+// Create a title.
+var title = ui.Label('Le territoire guyanais par Sentinel 2 (ESA) en 2018 (août-novembre)', {
+  stretch: 'horizontal',
+  textAlign: 'center',
+  fontWeight: 'bold',
+  fontSize: '24px'
+});
+
+// Add the maps and title to the ui.root.
+ui.root.widgets().reset([title, mapGrid]);
+ui.root.setLayout(ui.Panel.Layout.Flow('vertical'));
