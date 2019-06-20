@@ -1,4 +1,5 @@
  //This Script computes differents cloudless per-pixel mosaics of Sentinel 2 level 1-C images over french-Guiana.
+ 
 //This can be adapted to any locations by moving the import "geometry", 
 //and by the way you also can change the date. (double ctrl+F search&replace) 
 //(of course, computing such things during the rainy season can be pretty tough)
