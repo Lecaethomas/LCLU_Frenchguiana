@@ -1,0 +1,223 @@
+var guyane = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-54.12771125573204, 5.568721471656913],
+          [-54.33645149010704, 5.366399220638088],
+          [-54.52871223229454, 5.043639402015246],
+          [-54.50261970299766, 4.7617767918570975],
+          [-54.52321906823204, 4.33739897982459],
+          [-54.41335578698204, 3.9429240632084923],
+          [-54.23757453698204, 3.7894655479584944],
+          [-54.11123176354454, 3.5318138142024473],
+          [-54.19362922448204, 3.350866354015567],
+          [-54.29250617760704, 3.098581118666518],
+          [-54.29250617760704, 2.8736673451296806],
+          [-54.41884895104454, 2.6102975835228253],
+          [-54.68252082604454, 2.341384050984962],
+          [-54.66604133385704, 2.209652101579831],
+          [-54.07277961510704, 2.0175222492609732],
+          [-53.82558723229454, 2.2370972446007844],
+          [-53.64980598229454, 2.1328030225556383],
+          [-53.38613410729454, 2.2370972446007844],
+          [-53.22683234948204, 2.033991442322977],
+          [-52.88625617760704, 2.1273136540939257],
+          [-52.55666633385704, 2.3194295672120586],
+          [-52.44680305260704, 2.659683786270247],
+          [-52.31496711510704, 2.890125995528115],
+          [-52.16115852135704, 3.1205214231534586],
+          [-51.97439094323204, 3.4605355912762774],
+          [-51.80959602135704, 3.767540654608839],
+          [-51.62282844323204, 3.9429240632084923],
+          [-51.49099250573204, 4.348353763385321],
+          [-51.71621223229454, 4.67692142409809],
+          [-51.97439094323204, 4.824727246545131],
+          [-52.09524055260704, 4.961555821087392],
+          [-52.36989875573204, 5.109298803194721],
+          [-52.50173469323204, 5.284357420119078],
+          [-52.71047492760704, 5.432024724771856],
+          [-53.10598274010704, 5.590590021027805],
+          [-53.51247688073204, 5.661657147797225],
+          [-53.75966926354454, 5.770974089194693],
+          [-53.98488899010704, 5.858412487227604]]]);
+ //This Script computes differents cloudless per-pixel mosaics of Sentinel 2 level 1-C images over french-Guiana.
+//This can be adapted to any locations by moving the import "geometry", 
+//and by the way you also can change the date. (double ctrl+F search&replace) 
+//(of course, computing such things during the rainy season can be pretty tough)
+
+function maskS2clouds(image) {
+  var qa = image.select('QA60');
+
+  // Bits 10 and 11 are clouds and cirrus, respectively.
+  var cloudBitMask = 1 << 10;
+  var cirrusBitMask = 1 << 11;
+
+  // Both flags should be set to zero, indicating clear conditions.
+  var mask = qa.bitwiseAnd(cloudBitMask).eq(0)
+      .and(qa.bitwiseAnd(cirrusBitMask).eq(0));
+
+  return image.updateMask(mask).divide(10000);
+}
+// Sentinel 2 cloud function (B4)
+var cloudfunction_ST2 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b4 = image.select("B4");
+  // Get pixels above the threshold.
+  var cloud = b4.gt(2800);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};   
+
+
+// Sentinel 2 cloud function (B2)
+var cloudfunction_ST21 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b2 = image.select("B2");
+  // Get pixels above the threshold.
+  var cloud = b2.gt(0.5);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};  
+
+
+// Sentinel 2 cloud function (B3)
+var cloudfunction_ST22 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b3 = image.select("B3");
+  // Get pixels above the threshold.
+  var cloud = b3.gt(0.25);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};  
+
+
+// Sentinel 2 cloud function (B9)
+var cloudfunction_ST23 = function(image) {
+  // If band 4 is higher than 2500, the pixel is considered as cloudy.
+  var b9 = image.select("B9");
+  // Get pixels above the threshold.
+  var cloud = b9.gt(1.6);      
+  // Create a mask from high likelihood pixels.
+  var cloudmask = image.mask().and(cloud.not());
+  // Mask those pixels from the image.
+  return image.updateMask(cloudmask);
+};  
+
+// Function to mask further cloud using B1 (cirrus cloud) threshold
+var maskcloud2 = function(image) {
+ var B11 = image.select(['B11']);
+ var bin = B11.gt(0.8);
+ return image.updateMask(bin.lt(0.8));
+};
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////New variables computing///////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////
+
+
+// Function to calculate and add an NDVI band
+var addNDVI = function(image) {
+return image.addBands(image.normalizedDifference(['B8', 'B4']).rename('ndvi'));
+};
+// Function to calculate and add an NDWI band
+var addNDWI = function(image) {
+return image.addBands(image.normalizedDifference(['B8', 'B11']).rename('ndwi'));
+};
+
+var rgbVis = {
+  min: 0.0,
+  max: 0.3,
+  bands: ['B8', 'B4', 'B2'],
+};
+
+var dataset = ee.ImageCollection('COPERNICUS/S2')
+                  .filterDate('2018-01-01', '2018-12-31')
+                  .filterBounds(guyane)
+                  // Pre-filter to get less cloudy granules.
+                  .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20))
+
+var qualimos= dataset 
+        .filterDate('2018-01-01', '2018-11-30')
+        .map(maskS2clouds)
+        .map(addNDVI)
+        .qualityMosaic('ndvi')
+        .clip(guyane);
+
+Map.addLayer( qualimos, rgbVis,'S2Quality_mosaic');
+
+var median= dataset 
+        .filterDate('2018-08-01', '2018-10-30')
+        .map(cloudfunction_ST2) 
+        .map(maskS2clouds)
+        .map(maskcloud2)
+        .map(cloudfunction_ST21)
+        .map(cloudfunction_ST22)
+        .map(cloudfunction_ST23)
+        .select('B8','B11',"B9","B6","B5","B4","B3","B2","B1",'B12')
+        .median()
+        .clip(guyane);
+
+Map.addLayer( median, rgbVis,'S2Mediane');
+
+var perc= dataset 
+        .filterDate('2018-08-01', '2018-10-30')
+        .map(cloudfunction_ST2) 
+        .map(maskS2clouds)
+        .map(maskcloud2)
+        .map(cloudfunction_ST21)
+        .map(cloudfunction_ST22)
+        .map(cloudfunction_ST23)
+        .select('B8','B11',"B4","B3","B2",'B12')
+        .reduce(ee.Reducer.percentile([43]))
+        .clip(guyane)
+ 
+var rgbVis2percentile = {
+  min: 0.0,
+  max: 0.3,
+  bands: ['B8_p43', 'B4_p43', 'B2_p43'],
+};
+Map.addLayer(
+  perc.clip(guyane),
+  rgbVis2percentile,
+  'S2_43 percentile'
+);
+
+//Fonction pour exporter l'image vers le Drive associé au compte // Demande environ 30 minutes pour l'export
+
+Export.image.toDrive({
+  //préciser le nom de la variable contenant l'image (perc ou median ou qualimos), ainsi que le nom des bandes. s'il y a utilisation 
+  // de la méthode percentile alors les bandes doivent être accompagnée du centile utilisé (_p43)
+  image: perc.visualize({ bands: ['B4_p43', 'B3_p43', 'B2_p43'] , min: 0.0,max: 0.3,}),
+  //le nom qui lui sera donné (utile pour retrouver l'image)
+  description:'image_p38',
+  //le dossier éxistant du drive dans lequel stocker l'image
+  folder:'Images_S2',
+  //l'échelle d'export 
+  scale: 10,
+  region: guyane,
+  maxPixels: 1e13
+})
+
+//Pour les plus téméraires, l'équivalent est faisable avec landsat (pour la profondeur temporelle), mais il éxiste aussi un algo spécifique. 
+//Utilisé ici avec LS8 ce qui nous permet une visualisation jusqu'en 2013. LS1 débute sa mission en 1972... Have fun!
+var roi = guyane
+
+// Load the Landsat 8 scaled radiance image collection.
+var landsatCollection = ee.ImageCollection('LANDSAT/LC08/C01/T1')
+    .filterDate('2018-01-01', '2018-12-31')
+    .filterBounds(guyane)
+
+// Make a cloud-free composite.
+var composite = ee.Algorithms.Landsat.simpleComposite({
+  collection: landsatCollection,
+  asFloat: true,
+  percentile: 50
+});
+
+// Visualize the Composite
+Map.addLayer(composite.clip(guyane), {bands: ['B6', 'B4', 'B2'], max: 0.5, gamma: 2}, 'L8 Image');
