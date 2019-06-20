@@ -16,7 +16,5 @@ copy of this software, to deal in the program without restriction, including wit
 the rights to use, copy, modify, merge, publish, distribute, sublicense,
 and/or sell copies of the program
 
-Don't be surprised that the scripts are loaded with French and English comments, it aims at allowing agents to get the best of it but also 
-to keep it usefull for each and everyone interrested in working in such contexts.
-
-By the way, i'd like to underline the Google Earth Engine developpers group for their conscious or even unconscious "commons" spirit.
+Don't be surprised that the scripts are loaded with French and English comments, it aims at allowing french users to get the best of it 
+but also to keep it usefull for each and everyone interrested in working in such contexts.
