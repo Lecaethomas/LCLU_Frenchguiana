@@ -1,0 +1,74 @@
+// Load Sentinel-1 images to map Guyane flooding, France, end of April 2017.
+// This script was originally written by Simon Ilyushchenko (GEE team)
+// It aims at computing the difference between two VV polarisation images 
+// and then threshold this difference to map flooded areas.
+
+var guyane = /* color: #d63000 */ee.Geometry.Polygon(
+        [[[-53.75605035879323, 5.940871023584915],
+          [-54.08564020254323, 5.809727644309169],
+          [-54.33832574941823, 5.328612402001292],
+          [-54.59101129629323, 4.890906785111879],
+          [-54.50312067129323, 4.113290342560948],
+          [-54.14057184316823, 3.4445852548248728],
+          [-54.38227106191823, 2.9948579862927156],
+          [-54.37128473379323, 2.7095676057972247],
+          [-54.59101129629323, 2.4242099811741267],
+          [-54.63495660879323, 2.160749367761485],
+          [-54.03070856191823, 1.985083217360851],
+          [-53.81098199941823, 2.2375970165577415],
+          [-53.15180231191823, 2.0399809723789706],
+          [-52.70136285879323, 2.127813462546056],
+          [-51.44892145254323, 4.211906453223963],
+          [-51.85541559316823, 4.770486469899814],
+          [-53.37152887441823, 5.776936999645797]]]);
+
+
+
+
+// Default location
+var pt = ee.Geometry.Point(-52.3172, 4.9065); // Cayenne
+
+
+// Load Sentinel-1 C-band SAR Ground Range collection (log scaling, VV co-polar)
+var collection = ee.ImageCollection('COPERNICUS/S1_GRD').filterBounds(guyane)
+.filter(ee.Filter.eq('orbitProperties_pass', 'ASCENDING'))
+.filter(ee.Filter.listContains('transmitterReceiverPolarisation', 'VV'))
+.select('VV');
+
+
+// Filter by date
+var before = collection.filterDate('2017-02-15', '2017-04-27').mosaic().clip(guyane);
+var after = collection.filterDate('2017-04-29', '2017-05-15').mosaic().clip(guyane);
+
+// Threshold smoothed radar intensities to identify "flooded" areas.
+var SMOOTHING_RADIUS = 100;
+var DIFF_UPPER_THRESHOLD = -2;
+
+var diff_smoothed = after.focal_median(SMOOTHING_RADIUS, 'circle', 'meters')
+.subtract(before.focal_median(SMOOTHING_RADIUS, 'circle', 'meters'));
+
+var diff_thresholded = diff_smoothed.lt(DIFF_UPPER_THRESHOLD);
+var result= diff_thresholded.updateMask(diff_thresholded).updateMask(before.gte(-13)).toInt8()
+// Display map
+Map.centerObject(pt, 13);
+Map.addLayer(before, {min:-30,max:0}, 'Before flood', false);
+Map.addLayer(after, {min:-30,max:0}, 'After flood', false);
+Map.addLayer(after.subtract(before), {min:-10,max:10}, 'After - before', false, 0);
+Map.addLayer(diff_smoothed, {min:-10,max:10}, 'diff smoothed', false, 0);
+var result= result.toInt8()
+Map.addLayer(result.reproject('EPSG:4326', null,10),
+{palette:"0000FF"},'flooded areas - blue',1);
+Export.image.toDrive({
+  //préciser le nom de la variable contenant la classif, que l'on fait passer en image 8bit
+  image:result,
+  //le nom qui lui sera donné (utile pour retrouver l'image)
+  description:'inondation 27_04_2017',
+  crs: 'EPSG:4326',
+  //la résolution
+  scale: 10 ,
+  folder: 'inondations_2017',
+  //l'emprise, qui ne peut être une géométrie importée.
+  region: guyane,
+  //Autoriser à utiliser le nombre maximal de pixel
+  maxPixels: 1e13
+})
